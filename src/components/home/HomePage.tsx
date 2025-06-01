@@ -1,11 +1,82 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight, Bookmark, BarChart3, Users, Book, Play, Award } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 
 interface HomePageProps {
   onNavigate: (section: string) => void;
 }
 
+interface TestStats {
+  passedCount: number;
+  passedTests: Array<{
+    testId: string;
+    score: number;
+  }>;
+}
+
 const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
+  const { isAuthenticated } = useAuth();
+  const [testStats, setTestStats] = useState<TestStats | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
+
+  // Total number of tests available (you can adjust this based on your actual test count)
+  const totalTests = 12;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      loadTestStats();
+      
+      // Add visibility change listener to refresh data when user switches back to tab
+      const handleVisibilityChange = () => {
+        if (!document.hidden && isAuthenticated) {
+          loadTestStats();
+        }
+      };
+      
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }
+  }, [isAuthenticated]);
+
+  const loadTestStats = async () => {
+    if (!isAuthenticated) return;
+    
+    setIsLoadingStats(true);
+    try {
+      const response = await api.tests.getStats();
+      setTestStats(response);
+    } catch (error) {
+      console.error('Failed to load test stats:', error);
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const calculateProgress = () => {
+    if (!testStats || !isAuthenticated) return 0;
+    return Math.round((testStats.passedCount / totalTests) * 100);
+  };
+
+  const getProgressLabel = () => {
+    if (!isAuthenticated) return 'Увійдіть для відстеження прогресу';
+    if (isLoadingStats) return 'Завантаження...';
+    
+    const progress = calculateProgress();
+    if (progress === 0) return 'Почніть проходити тести';
+    if (progress === 100) return 'Усі тести завершено!';
+    return 'В процесі';
+  };
+
+  const getProgressColor = () => {
+    if (!isAuthenticated || isLoadingStats) return 'gray';
+    
+    const progress = calculateProgress();
+    if (progress === 0) return 'gray';
+    if (progress === 100) return 'green';
+    return 'purple';
+  };
+
   const features = [
     {
       id: 'visualizer',
@@ -125,22 +196,68 @@ const HomePage: React.FC<HomePageProps> = ({ onNavigate }) => {
             ))}
           </ul>
           <div className="mt-4 border-t border-gray-200 pt-4">
-            <h3 className="text-md font-medium text-gray-900 mb-2">Прогрес навчання</h3>
-            <div className="relative pt-1">
-              <div className="flex mb-2 items-center justify-between">
-                <div>
-                  <span className="text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full text-purple-600 bg-purple-200">
-                    В процесі
-                  </span>
-                </div>
-                <div className="text-right">
-                  <span className="text-xs font-semibold inline-block text-purple-600">30%</span>
-                </div>
-              </div>
-              <div className="overflow-hidden h-2 mb-4 text-xs flex rounded bg-purple-200">
-                <div style={{ width: "30%" }} className="shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center bg-purple-600"></div>
-              </div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-md font-medium text-gray-900">Прогрес навчання</h3>
+              {isAuthenticated && testStats && (
+                <span className="text-sm text-gray-600">
+                  {testStats.passedCount} з {totalTests} тестів
+                </span>
+              )}
             </div>
+            
+            {isAuthenticated ? (
+              <div className="relative pt-1">
+                <div className="flex mb-2 items-center justify-between">
+                  <div>
+                    <span className={`text-xs font-semibold inline-block py-1 px-2 uppercase rounded-full ${
+                      getProgressColor() === 'green' ? 'text-green-600 bg-green-200' :
+                      getProgressColor() === 'gray' ? 'text-gray-600 bg-gray-200' :
+                      'text-purple-600 bg-purple-200'
+                    }`}>
+                      {getProgressLabel()}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className={`text-xs font-semibold inline-block ${
+                      getProgressColor() === 'green' ? 'text-green-600' :
+                      getProgressColor() === 'gray' ? 'text-gray-600' :
+                      'text-purple-600'
+                    }`}>
+                      {isLoadingStats ? '...' : `${calculateProgress()}%`}
+                    </span>
+                  </div>
+                </div>
+                <div className={`overflow-hidden h-2 mb-4 text-xs flex rounded ${
+                  getProgressColor() === 'green' ? 'bg-green-200' :
+                  getProgressColor() === 'gray' ? 'bg-gray-200' :
+                  'bg-purple-200'
+                }`}>
+                  <div 
+                    style={{ width: `${calculateProgress()}%` }} 
+                    className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center transition-all duration-300 ${
+                      getProgressColor() === 'green' ? 'bg-green-600' :
+                      getProgressColor() === 'gray' ? 'bg-gray-600' :
+                      'bg-purple-600'
+                    }`}
+                  ></div>
+                </div>
+                {testStats && testStats.passedCount > 0 && (
+                  <div className="text-xs text-gray-500 mt-2">
+                    Середній бал: {Math.round(testStats.passedTests.reduce((sum, test) => sum + test.score, 0) / testStats.passedTests.length)}%
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-sm text-gray-500 mb-3">Увійдіть в систему, щоб відстежувати свій прогрес</p>
+                <button
+                  onClick={() => onNavigate('auth')}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-xs font-medium rounded-md text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                >
+                  Увійти
+                </button>
+              </div>
+            )}
           </div>
         </section>
       </div>
