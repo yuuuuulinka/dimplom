@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Clock, CheckCircle, XCircle, Award, RotateCcw } from 'lucide-react';
 import { Test, TestQuestion } from '../../types/practice';
+import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
+import api from '../../services/api';
 
 interface TestDetailProps {
   test: Test;
   onBack: () => void;
+  onTestCompleted?: () => void;
 }
 
-const TestDetail: React.FC<TestDetailProps> = ({ test, onBack }) => {
+const TestDetail: React.FC<TestDetailProps> = ({ test, onBack, onTestCompleted }) => {
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<{ [key: string]: number }>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [timeRemaining, setTimeRemaining] = useState(test.estimatedTime * 60); // Convert to seconds
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
+  const { user } = useAuth();
+  const { addNotification } = useNotifications();
 
   useEffect(() => {
     if (!isSubmitted && timeRemaining > 0) {
@@ -62,11 +68,40 @@ const TestDetail: React.FC<TestDetailProps> = ({ test, onBack }) => {
     return Math.round((correct / test.questions.length) * 100);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const finalScore = calculateScore();
     setScore(finalScore);
     setIsSubmitted(true);
     setShowResults(true);
+
+    // Record test success if user passed and is authenticated
+    if (user && finalScore >= test.passingScore) {
+      try {
+        const response = await api.tests.recordSuccess(test.id, finalScore, test.passingScore);
+        console.log('Test success recorded:', response.message);
+        
+        // Show success notification
+        addNotification({
+          type: 'success',
+          message: response.created 
+            ? 'Вітаємо! Ваш успіх у тесті збережено!' 
+            : response.updated 
+            ? 'Ваш результат оновлено з кращим результатом!' 
+            : 'Тест пройдено успішно!'
+        });
+
+        // Call the callback to refresh test stats in parent components
+        if (onTestCompleted) {
+          onTestCompleted();
+        }
+      } catch (error) {
+        console.error('Failed to record test success:', error);
+        addNotification({
+          type: 'warning',
+          message: 'Тест пройдено, але не вдалося зберегти результат. Спробуйте пізніше.'
+        });
+      }
+    }
   };
 
   const handleRestart = () => {

@@ -741,6 +741,205 @@ app.put('/api/achievements/:achievementId',
     }
 });
 
+// Record test success endpoint
+app.post('/api/test-success',
+  passport.authenticate('jwt', { session: false }),
+  async (req, res) => {
+    try {
+      const { testId, score, passingScore } = req.body;
+      const userId = req.user.id_user;
+
+      // Validate input
+      if (!testId || score === undefined || passingScore === undefined) {
+        return res.status(400).json({ message: 'testId, score та passingScore є обов\'язковими полями' });
+      }
+
+      // Check if user passed the test
+      if (score < passingScore) {
+        return res.status(400).json({ message: 'Результат недостатній для проходження тесту' });
+      }
+
+      // Check if success already exists for this user and test
+      const [existingSuccess] = await pool.query(
+        'SELECT * FROM success WHERE id_user = ? AND id_test = ?',
+        [userId, testId]
+      );
+
+      if (existingSuccess.length > 0) {
+        // Update existing record with better score if applicable
+        if (score > existingSuccess[0].mark) {
+          await pool.query(
+            'UPDATE success SET mark = ? WHERE id_user = ? AND id_test = ?',
+            [score, userId, testId]
+          );
+          res.json({ 
+            message: 'Результат тесту оновлено з кращим результатом',
+            updated: true
+          });
+        } else {
+          res.json({ 
+            message: 'Успіх у тесті вже записаний',
+            updated: false
+          });
+        }
+      } else {
+        // Insert new success record
+        await pool.query(
+          'INSERT INTO success (id_user, id_test, mark) VALUES (?, ?, ?)',
+          [userId, testId, score]
+        );
+        res.json({ 
+          message: 'Успіх у тесті записано успішно',
+          created: true
+        });
+      }
+    } catch (error) {
+      console.error('Record test success error:', error);
+      res.status(500).json({ message: 'Помилка при записі успіху тесту', error: error.message });
+    }
+});
+
+// Get user test history endpoint
+app.get('/api/test-history',
+  passport.authenticate('jwt', { session: false }),
+  async (req, res) => {
+    try {
+      const userId = req.user.id_user;
+
+      const [testHistory] = await pool.query(
+        'SELECT id_test as testId, mark as score FROM success WHERE id_user = ? ORDER BY id_test',
+        [userId]
+      );
+
+      res.json({
+        message: 'Історія тестів завантажена успішно',
+        testHistory: testHistory
+      });
+    } catch (error) {
+      console.error('Get test history error:', error);
+      res.status(500).json({ message: 'Помилка при завантаженні історії тестів', error: error.message });
+    }
+});
+
+// Get passed tests count endpoint
+app.get('/api/test-stats',
+  passport.authenticate('jwt', { session: false }),
+  async (req, res) => {
+    try {
+      const userId = req.user.id_user;
+
+      // Get count of passed tests
+      const [countResult] = await pool.query(
+        'SELECT COUNT(*) as count FROM success WHERE id_user = ?',
+        [userId]
+      );
+
+      // Get list of passed test IDs for marking completion in UI
+      const [passedTests] = await pool.query(
+        'SELECT id_test as testId, mark as score FROM success WHERE id_user = ?',
+        [userId]
+      );
+
+      res.json({
+        message: 'Статистика тестів завантажена успішно',
+        passedCount: countResult[0].count,
+        passedTests: passedTests
+      });
+    } catch (error) {
+      console.error('Get test stats error:', error);
+      res.status(500).json({ message: 'Помилка при завантаженні статистики тестів', error: error.message });
+    }
+});
+
+// Get comments for a post
+app.get('/api/comments/:postId',
+  async (req, res) => {
+    try {
+      const { postId } = req.params;
+
+      const [comments] = await pool.query(`
+        SELECT 
+          c.id_comment,
+          c.text_comment,
+          c.rate,
+          c.post_time,
+          u.name,
+          u.lastname
+        FROM comments c
+        JOIN Users u ON c.id_user = u.id_user
+        WHERE c.id_post = ?
+        ORDER BY c.post_time DESC
+      `, [postId]);
+
+      res.json({
+        message: 'Коментарі завантажено успішно',
+        comments: comments.map(comment => ({
+          id: comment.id_comment,
+          text: comment.text_comment,
+          rating: comment.rate,
+          date: comment.post_time,
+          authorName: `${comment.name} ${comment.lastname}`
+        }))
+      });
+    } catch (error) {
+      console.error('Get comments error:', error);
+      res.status(500).json({ message: 'Помилка при завантаженні коментарів', error: error.message });
+    }
+});
+
+// Add comment to a post
+app.post('/api/comments',
+  passport.authenticate('jwt', { session: false }),
+  async (req, res) => {
+    try {
+      const { postId, text, rating } = req.body;
+      const userId = req.user.id_user;
+
+      // Validate input
+      if (!postId || !text || !rating) {
+        return res.status(400).json({ message: 'postId, text та rating є обов\'язковими полями' });
+      }
+
+      if (rating < 1 || rating > 5) {
+        return res.status(400).json({ message: 'Рейтинг повинен бути від 1 до 5' });
+      }
+
+      // Insert new comment
+      const [result] = await pool.query(
+        'INSERT INTO comments (id_user, id_post, text_comment, rate, post_time) VALUES (?, ?, ?, ?, NOW())',
+        [userId, postId, text, rating]
+      );
+
+      // Get the created comment with user info
+      const [newComment] = await pool.query(`
+        SELECT 
+          c.id_comment,
+          c.text_comment,
+          c.rate,
+          c.post_time,
+          u.name,
+          u.lastname
+        FROM comments c
+        JOIN Users u ON c.id_user = u.id_user
+        WHERE c.id_comment = ?
+      `, [result.insertId]);
+
+      res.status(201).json({
+        message: 'Коментар додано успішно',
+        comment: {
+          id: newComment[0].id_comment,
+          text: newComment[0].text_comment,
+          rating: newComment[0].rate,
+          date: newComment[0].post_time,
+          authorName: `${newComment[0].name} ${newComment[0].lastname}`
+        }
+      });
+    } catch (error) {
+      console.error('Add comment error:', error);
+      res.status(500).json({ message: 'Помилка при додаванні коментаря', error: error.message });
+    }
+});
+
 // Default configuration if .env is not present
 const config = {
   port: 3000,

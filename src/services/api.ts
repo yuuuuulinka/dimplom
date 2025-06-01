@@ -208,9 +208,92 @@ export const achievements = {
   }
 };
 
+interface TestSuccessResponse {
+  message: string;
+  created?: boolean;
+  updated?: boolean;
+}
+
+interface TestHistoryRecord {
+  testId: string;
+  score: number;
+  dateAchieved: string;
+}
+
+interface TestHistoryResponse {
+  message: string;
+  testHistory: TestHistoryRecord[];
+}
+
+interface TestStatsResponse {
+  message: string;
+  passedCount: number;
+  passedTests: Array<{
+    testId: string;
+    score: number;
+  }>;
+}
+
+export const tests = {
+  recordSuccess: async (testId: string, score: number, passingScore: number): Promise<TestSuccessResponse> => {
+    const response = await api.post<TestSuccessResponse>('/api/test-success', {
+      testId,
+      score,
+      passingScore
+    });
+    return response.data;
+  },
+
+  getHistory: async (): Promise<TestHistoryResponse> => {
+    const response = await api.get<TestHistoryResponse>('/api/test-history');
+    return response.data;
+  },
+
+  getStats: async (): Promise<TestStatsResponse> => {
+    const response = await api.get<TestStatsResponse>('/api/test-stats');
+    return response.data;
+  }
+};
+
+interface Comment {
+  id: number;
+  text: string;
+  rating: number;
+  date: string;
+  authorName: string;
+}
+
+interface GetCommentsResponse {
+  message: string;
+  comments: Comment[];
+}
+
+interface AddCommentResponse {
+  message: string;
+  comment: Comment;
+}
+
+export const comments = {
+  getComments: async (postId: string): Promise<GetCommentsResponse> => {
+    const response = await api.get<GetCommentsResponse>(`/api/comments/${postId}`);
+    return response.data;
+  },
+
+  addComment: async (postId: string, text: string, rating: number): Promise<AddCommentResponse> => {
+    const response = await api.post<AddCommentResponse>('/api/comments', {
+      postId,
+      text,
+      rating
+    });
+    return response.data;
+  }
+};
+
 export default {
   auth,
   users,
   graphs,
-  achievements
+  achievements,
+  tests,
+  comments
 }; 

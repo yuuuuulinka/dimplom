@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { User, Settings, Award, BookOpen, Clock, BarChart3, Calendar, ChevronRight, Edit, LogOut, Trophy, Star, CheckCircle, XCircle, Save, Eye, Trash2, FolderOpen } from 'lucide-react';
+import { User, Settings, Award, BookOpen, Clock, BarChart3, Calendar, ChevronRight, Edit, LogOut, Trophy, Star, CheckCircle, XCircle, Save, Eye, Trash2, FolderOpen, Mail, Edit3, Camera, X, Target, Brush, Download } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { GraphData, GraphType } from '../../types/graph';
-import { graphs, SavedGraph, achievements } from '../../services/api';
+import api, { graphs, SavedGraph, achievements } from '../../services/api';
+import { getTests } from '../../data/tests';
 
 interface UserProfileProps {
   onLoginClick: () => void;
@@ -22,6 +23,11 @@ const UserProfile: React.FC<UserProfileProps> = ({ onLoginClick, onNavigateToEdi
   const [deletingGraphId, setDeletingGraphId] = useState<string | null>(null);
   const [userAchievements, setUserAchievements] = useState<any[]>([]);
   const [isLoadingAchievements, setIsLoadingAchievements] = useState(false);
+  const [testStats, setTestStats] = useState<{
+    passedCount: number;
+    passedTests: Array<{ testId: string; score: number }>;
+  }>({ passedCount: 0, passedTests: [] });
+  const [isLoadingStats, setIsLoadingStats] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
     surname: user?.surname || '',
@@ -120,12 +126,50 @@ const UserProfile: React.FC<UserProfileProps> = ({ onLoginClick, onNavigateToEdi
     }
   };
 
+  const loadTestStats = async () => {
+    if (isLoadingStats) return;
+    
+    setIsLoadingStats(true);
+    try {
+      const response = await api.tests.getStats();
+      setTestStats({
+        passedCount: response.passedCount,
+        passedTests: response.passedTests
+      });
+      return response;
+    } catch (error) {
+      console.error('Помилка завантаження статистики тестів:', error);
+      addNotification({
+        type: 'error',
+        message: 'Не вдалося завантажити статистику тестів'
+      });
+      return null;
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
   // Load saved graphs and achievements from API on component mount
   useEffect(() => {
     if (isAuthenticated) {
       loadSavedGraphs();
       loadUserAchievements();
+      loadTestStats();
     }
+  }, [isAuthenticated]);
+
+  // Refresh test stats when user comes back from taking tests
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && isAuthenticated) {
+        loadTestStats();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [isAuthenticated]);
 
   // Save graphs to localStorage whenever savedGraphs changes
@@ -537,44 +581,48 @@ const UserProfile: React.FC<UserProfileProps> = ({ onLoginClick, onNavigateToEdi
           <div className="space-y-6">
             <div className="bg-white p-6 rounded-lg shadow-sm">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Прогрес навчання</h3>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Основи графів</span>
-                    <span>7/10 завершено</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: '70%' }}></div>
-                  </div>
+              {isLoadingStats ? (
+                <div className="flex justify-center items-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
                 </div>
-                <div>
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Алгоритми пошуку</span>
-                    <span>4/8 завершено</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: '50%' }}></div>
-                  </div>
+              ) : (
+                <div className="space-y-4">
+                  {testStats.passedTests.length > 0 ? (
+                    <div className="space-y-3">
+                      <h4 className="text-md font-medium text-gray-900">Пройдені тести:</h4>
+                      {testStats.passedTests.map((passedTest) => {
+                        const allTests = getTests();
+                        const testInfo = allTests.find(t => t.id === passedTest.testId);
+                        return (
+                          <div key={passedTest.testId} className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                            <div className="flex items-center">
+                              <CheckCircle size={20} className="text-green-600 mr-3" />
+                              <div>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {testInfo?.title || passedTest.testId}
+                                </p>
+                                <p className="text-xs text-gray-500">
+                                  {testInfo ? `${testInfo.category} - ${testInfo.difficulty}` : 'Тест пройдено'}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-sm font-bold text-green-800">{passedTest.score}%</p>
+                              <p className="text-xs text-gray-500">Результат</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Award size={48} className="mx-auto text-gray-400 mb-4" />
+                      <h4 className="text-lg font-medium text-gray-900 mb-2">Поки що немає пройдених тестів</h4>
+                      <p className="text-gray-600">Почніть проходити тести, щоб відстежувати свій прогрес!</p>
+                    </div>
+                  )}
                 </div>
-                <div>
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Алгоритми знаходження найкоротших шляхів</span>
-                    <span>2/6 завершено</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: '33%' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-sm text-gray-600 mb-1">
-                    <span>Мінімальні кістякові дерева</span>
-                    <span>0/4 завершено</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-purple-600 h-2 rounded-full" style={{ width: '0%' }}></div>
-                  </div>
-                </div>
-              </div>
+              )}
             </div>
             
             <div className="bg-white p-6 rounded-lg shadow-sm">
@@ -584,7 +632,9 @@ const UserProfile: React.FC<UserProfileProps> = ({ onLoginClick, onNavigateToEdi
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-xs text-purple-600 font-medium uppercase">Розв'язані задачі</p>
-                      <p className="text-2xl font-bold text-purple-800">12</p>
+                      <p className="text-2xl font-bold text-purple-800">
+                        {isLoadingStats ? '...' : testStats.passedCount}
+                      </p>
                     </div>
                     <BookOpen size={32} className="text-purple-500" />
                   </div>
@@ -593,7 +643,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ onLoginClick, onNavigateToEdi
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-xs text-green-600 font-medium uppercase">Рівень успіху</p>
-                      <p className="text-2xl font-bold text-green-800">75%</p>
+                      <p className="text-2xl font-bold text-green-800">
+                        {isLoadingStats ? '...' : (
+                          testStats.passedTests.length > 0
+                            ? Math.round(testStats.passedTests.reduce((sum, test) => sum + test.score, 0) / testStats.passedTests.length) + '%'
+                            : '0%'
+                        )}
+                      </p>
                     </div>
                     <BarChart3 size={32} className="text-green-500" />
                   </div>
@@ -602,7 +658,13 @@ const UserProfile: React.FC<UserProfileProps> = ({ onLoginClick, onNavigateToEdi
                   <div className="flex justify-between items-center">
                     <div>
                       <p className="text-xs text-blue-600 font-medium uppercase">Час навчання</p>
-                      <p className="text-2xl font-bold text-blue-800">28h</p>
+                      <p className="text-2xl font-bold text-blue-800">
+                        {isLoadingStats ? '...' : (
+                          testStats.passedTests.length > 0
+                            ? Math.round(testStats.passedTests.length * 0.5) + 'h'
+                            : '0h'
+                        )}
+                      </p>
                     </div>
                     <Clock size={32} className="text-blue-500" />
                   </div>

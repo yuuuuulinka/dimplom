@@ -1,14 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Star, ThumbsUp, MessageCircle, Bookmark, Share2, FileText, Play, Video } from 'lucide-react';
 import { Material } from '../../types/materials';
 import { useTests } from '../../hooks/useTests';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
+import api from '../../services/api';
 
 interface MaterialDetailProps {
   material: Material;
   onBack: () => void;
   onTakeTest?: (testId: string) => void;
+}
+
+interface Comment {
+  id: number;
+  text: string;
+  rating: number;
+  date: string;
+  authorName: string;
 }
 
 const MaterialDetail: React.FC<MaterialDetailProps> = ({ material, onBack, onTakeTest }) => {
@@ -18,22 +27,30 @@ const MaterialDetail: React.FC<MaterialDetailProps> = ({ material, onBack, onTak
   const [review, setReview] = useState('');
   const [rating, setRating] = useState(0);
   const [hoveredStar, setHoveredStar] = useState(0);
-  const [reviews] = useState([
-    {
-      id: 1,
-      user: 'Іван Кошовий',
-      rating: 5,
-      comment: 'Відмінний вступ до теорії графів! Приклади допомогли мені краще зрозуміти концепції.',
-      date: '2 дні тому'
-    },
-    {
-      id: 2,
-      user: 'Олександра Симоненко',
-      rating: 4,
-      comment: 'Дуже зрозумілі пояснення. Було б чудово побачити більше інтерактивних прикладів.',
-      date: '1 тиждень тому'
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load comments when component mounts
+  useEffect(() => {
+    loadComments();
+  }, [material.id]);
+
+  const loadComments = async () => {
+    setIsLoading(true);
+    try {
+      const response = await api.comments.getComments(material.id);
+      setComments(response.comments);
+    } catch (error) {
+      console.error('Failed to load comments:', error);
+      addNotification({
+        type: 'error',
+        message: 'Не вдалося завантажити коментарі'
+      });
+    } finally {
+      setIsLoading(false);
     }
-  ]);
+  };
 
   // Helper function to extract YouTube video ID from URL
   const getYouTubeVideoId = (url: string): string | null => {
@@ -42,7 +59,7 @@ const MaterialDetail: React.FC<MaterialDetailProps> = ({ material, onBack, onTak
     return match ? match[1] : null;
   };
 
-  const handleSubmitReview = () => {
+  const handleSubmitReview = async () => {
     if (!isAuthenticated) {
       addNotification({
         type: 'error',
@@ -67,14 +84,52 @@ const MaterialDetail: React.FC<MaterialDetailProps> = ({ material, onBack, onTak
       return;
     }
 
-    // In a real app, we would send this to the backend
-    addNotification({
-      type: 'success',
-      message: 'Відгук успішно надіслано!'
-    });
-    setReview('');
-    setRating(0);
+    setIsSubmitting(true);
+    try {
+      const response = await api.comments.addComment(material.id, review.trim(), rating);
+      
+      // Add the new comment to the list
+      setComments(prev => [response.comment, ...prev]);
+      
+      addNotification({
+        type: 'success',
+        message: 'Відгук успішно надіслано!'
+      });
+      
+      // Reset form
+      setReview('');
+      setRating(0);
+    } catch (error) {
+      console.error('Failed to submit comment:', error);
+      addNotification({
+        type: 'error',
+        message: 'Не вдалося надіслати відгук. Спробуйте пізніше.'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    
+    if (diffInHours < 1) {
+      return 'щойно';
+    } else if (diffInHours < 24) {
+      return `${diffInHours} год тому`;
+    } else if (diffInHours < 168) {
+      const days = Math.floor(diffInHours / 24);
+      return `${days} ${days === 1 ? 'день' : days < 5 ? 'дні' : 'днів'} тому`;
+    } else {
+      return date.toLocaleDateString('uk-UA');
+    }
+  };
+
+  const averageRating = comments.length > 0 
+    ? (comments.reduce((sum, comment) => sum + comment.rating, 0) / comments.length).toFixed(1)
+    : material.rating;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -99,7 +154,7 @@ const MaterialDetail: React.FC<MaterialDetailProps> = ({ material, onBack, onTak
                 <span className="mr-4">{material.duration} {material.videoUrl ? 'переглянути' : 'прочитати'}</span>
                 <div className="flex items-center">
                   <Star className="w-4 h-4 text-yellow-400 mr-1" />
-                  <span>{material.rating} ({reviews.length} відгуків)</span>
+                  <span>{averageRating} ({comments.length} відгуків)</span>
                 </div>
               </div>
             </div>
@@ -892,51 +947,57 @@ const MaterialDetail: React.FC<MaterialDetailProps> = ({ material, onBack, onTak
             <div className="mt-4 flex justify-end">
               <button
                 onClick={handleSubmitReview}
-                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                disabled={isSubmitting}
+                className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Надіслати відгук
+                {isSubmitting ? 'Надсилання...' : 'Надіслати відгук'}
               </button>
             </div>
           </div>
 
           {/* Existing Reviews */}
-          <div className="space-y-6">
-            {reviews.map((review) => (
-              <div key={review.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="flex items-center">
-                      <span className="font-medium text-gray-900">{review.user}</span>
-                      <span className="mx-2 text-gray-300">•</span>
-                      <span className="text-sm text-gray-500">{review.date}</span>
-                    </div>
-                    <div className="flex items-center mt-1">
-                      {[...Array(5)].map((_, i) => (
-                        <Star
-                          key={i}
-                          size={16}
-                          className={`${
-                            i < review.rating
-                              ? 'text-yellow-400 fill-current'
-                              : 'text-gray-300'
-                          }`}
-                        />
-                      ))}
+          {isLoading ? (
+            <div className="flex justify-center items-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-500"></div>
+              <span className="ml-2 text-gray-600">Завантаження коментарів...</span>
+            </div>
+          ) : comments.length === 0 ? (
+            <div className="text-center py-8">
+              <MessageCircle size={48} className="mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Поки що немає відгуків</h3>
+              <p className="text-gray-600">Будьте першим, хто залишить відгук про цей матеріал!</p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {comments.map((comment) => (
+                <div key={comment.id} className="border-b border-gray-200 pb-6 last:border-b-0 last:pb-0">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <div className="flex items-center">
+                        <span className="font-medium text-gray-900">{comment.authorName}</span>
+                        <span className="mx-2 text-gray-300">•</span>
+                        <span className="text-sm text-gray-500">{formatDate(comment.date)}</span>
+                      </div>
+                      <div className="flex items-center mt-1">
+                        {[...Array(5)].map((_, i) => (
+                          <Star
+                            key={i}
+                            size={16}
+                            className={`${
+                              i < comment.rating
+                                ? 'text-yellow-400 fill-current'
+                                : 'text-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
                     </div>
                   </div>
-                  <div className="flex space-x-2">
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <ThumbsUp size={16} />
-                    </button>
-                    <button className="text-gray-400 hover:text-gray-600">
-                      <MessageCircle size={16} />
-                    </button>
-                  </div>
+                  <p className="mt-2 text-gray-600">{comment.text}</p>
                 </div>
-                <p className="mt-2 text-gray-600">{review.comment}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

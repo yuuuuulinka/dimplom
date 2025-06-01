@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Search, Filter, Award, Book, CheckCircle, FileText } from 'lucide-react';
 import { usePracticeProblems } from '../../hooks/usePracticeProblems';
 import { useTests } from '../../hooks/useTests';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../services/api';
 import ProblemCard from './ProblemCard';
 import ProblemDetail from './ProblemDetail';
 import TestCard from './TestCard';
@@ -11,12 +13,18 @@ import { PracticeProblem, Test } from '../../types/practice';
 const Practice: React.FC = () => {
   const { problems, isLoading: problemsLoading, error: problemsError } = usePracticeProblems();
   const { tests, isLoading: testsLoading, error: testsError } = useTests();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState('all');
   const [selectedTopic, setSelectedTopic] = useState('all');
   const [activeTab, setActiveTab] = useState<'problems' | 'tests'>('problems');
   const [selectedProblem, setSelectedProblem] = useState<PracticeProblem | null>(null);
   const [selectedTest, setSelectedTest] = useState<Test | null>(null);
+  const [testStats, setTestStats] = useState<{
+    passedCount: number;
+    passedTests: Array<{ testId: string; score: number }>;
+  }>({ passedCount: 0, passedTests: [] });
+  const [statsLoading, setStatsLoading] = useState(false);
   
   const difficulties = [
     { id: 'all', name: 'Усі рівні складності' },
@@ -52,6 +60,29 @@ const Practice: React.FC = () => {
     return matchesSearch && matchesDifficulty && matchesTopic;
   });
   
+  // Create a named function for fetchTestStats so it can be called from the callback
+  const fetchTestStats = async () => {
+    if (!user) return;
+    
+    setStatsLoading(true);
+    try {
+      const stats = await api.tests.getStats();
+      setTestStats({
+        passedCount: stats.passedCount,
+        passedTests: stats.passedTests
+      });
+    } catch (error) {
+      console.error('Failed to fetch test stats:', error);
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+  
+  // Fetch test statistics when user is available
+  useEffect(() => {
+    fetchTestStats();
+  }, [user]);
+  
   if (selectedProblem) {
     return (
       <ProblemDetail 
@@ -65,7 +96,13 @@ const Practice: React.FC = () => {
     return (
       <TestDetail 
         test={selectedTest} 
-        onBack={() => setSelectedTest(null)} 
+        onBack={() => setSelectedTest(null)}
+        onTestCompleted={() => {
+          // Refresh test stats when a test is completed
+          if (user) {
+            fetchTestStats();
+          }
+        }}
       />
     );
   }
@@ -216,20 +253,36 @@ const Practice: React.FC = () => {
                   <h2 className="text-xl font-semibold text-gray-900">
                     {filteredTests.length} Тест{filteredTests.length !== 1 ? 'ів' : ''}
                   </h2>
-                  <div className="text-sm text-gray-500 flex items-center">
-                    <CheckCircle size={18} className="text-green-500 mr-1" />
-                    <span>2 виконано</span>
-                  </div>
+                  {user && (
+                    <div className="text-sm text-gray-500 flex items-center">
+                      <CheckCircle size={18} className="text-green-500 mr-1" />
+                      {statsLoading ? (
+                        <span>Завантаження...</span>
+                      ) : (
+                        <span>{testStats.passedCount} виконано</span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredTests.map(test => (
-                    <TestCard 
-                      key={test.id} 
-                      test={test} 
-                      onClick={() => setSelectedTest(test)} 
-                    />
-                  ))}
+                  {filteredTests.map(test => {
+                    // Check if this test is completed
+                    const passedTest = testStats.passedTests.find(pt => pt.testId === test.id);
+                    const testWithCompletion = {
+                      ...test,
+                      completed: !!passedTest,
+                      score: passedTest?.score
+                    };
+                    
+                    return (
+                      <TestCard 
+                        key={test.id} 
+                        test={testWithCompletion} 
+                        onClick={() => setSelectedTest(test)} 
+                      />
+                    );
+                  })}
                 </div>
               </>
             )
@@ -242,7 +295,9 @@ const Practice: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-xs text-green-600 font-medium uppercase">Виконано</p>
-                    <p className="text-2xl font-bold text-green-800">{activeTab === 'problems' ? '3' : '2'}</p>
+                    <p className="text-2xl font-bold text-green-800">
+                      {activeTab === 'tests' && user ? testStats.passedCount : '3'}
+                    </p>
                   </div>
                   <CheckCircle size={32} className="text-green-500" />
                 </div>
@@ -251,7 +306,12 @@ const Practice: React.FC = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <p className="text-xs text-yellow-600 font-medium uppercase">В процесі</p>
-                    <p className="text-2xl font-bold text-yellow-800">{activeTab === 'problems' ? '2' : '1'}</p>
+                    <p className="text-2xl font-bold text-yellow-800">
+                      {activeTab === 'tests' && user 
+                        ? Math.max(0, filteredTests.length - testStats.passedCount)
+                        : activeTab === 'problems' ? '2' : '1'
+                      }
+                    </p>
                   </div>
                   <div className="h-8 w-8 rounded-full border-4 border-yellow-500 border-r-transparent animate-spin"></div>
                 </div>
@@ -259,8 +319,15 @@ const Practice: React.FC = () => {
               <div className="bg-blue-50 p-4 rounded-md">
                 <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-xs text-blue-600 font-medium uppercase">{activeTab === 'problems' ? 'Точність' : 'Середній бал'}</p>
-                    <p className="text-2xl font-bold text-blue-800">{activeTab === 'problems' ? '75%' : '82%'}</p>
+                    <p className="text-xs text-blue-600 font-medium uppercase">
+                      {activeTab === 'problems' ? 'Точність' : 'Середній бал'}
+                    </p>
+                    <p className="text-2xl font-bold text-blue-800">
+                      {activeTab === 'tests' && user && testStats.passedTests.length > 0
+                        ? Math.round(testStats.passedTests.reduce((sum, test) => sum + test.score, 0) / testStats.passedTests.length) + '%'
+                        : activeTab === 'problems' ? '75%' : '82%'
+                      }
+                    </p>
                   </div>
                   <Award size={32} className="text-blue-500" />
                 </div>
