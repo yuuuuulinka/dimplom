@@ -159,10 +159,8 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
           </label>
         </div>
 
-        <div className="text-sm">
-          <a href="#" className="font-medium text-purple-600 hover:text-purple-500">
-            Забули пароль?
-          </a>
+        <div className="text-sm font-medium text-purple-600 hover:text-purple-500">
+            Раді Вас бачити тут знову 💜
         </div>
       </div>
 
@@ -182,12 +180,12 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             <div className="w-full border-t border-gray-300"></div>
           </div>
           <div className="relative flex justify-center text-sm">
-            <span className="px-2 bg-white text-gray-500">Або продовжити з</span>
+            <span className="px-2 bg-white text-gray-500">Або...</span>
           </div>
         </div>
 
-        <div className="mt-6">
-          <button
+        {/* <div className="mt-6">
+          {/* <button
             type="button"
             onClick={handleGoogleLogin}
             disabled={isGoogleLoading}
@@ -201,7 +199,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
             </svg>
             {isGoogleLoading ? 'Вхід через Google...' : 'Google'}
           </button>
-        </div>
+        </div> */}
       </div>
     </form>
   );
