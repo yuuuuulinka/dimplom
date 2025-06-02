@@ -480,7 +480,7 @@ const getDijkstraSteps = (startVertex?: string, customGraph?: any): AlgorithmSte
   const steps: AlgorithmStep[] = [];
 
   // Initialize distances
-  baseGraph.nodes.forEach(node => {
+  baseGraph.nodes.forEach((node: any) => {
     distances.set(node.id, node.id === startNodeId ? 0 : Infinity);
     previous.set(node.id, null);
     unvisited.add(node.id);
@@ -489,8 +489,8 @@ const getDijkstraSteps = (startVertex?: string, customGraph?: any): AlgorithmSte
   // Helper function to get neighbors with weights
   const getNeighbors = (nodeId: number): Array<{nodeId: number, weight: number}> => {
     return baseGraph.edges
-      .filter(edge => edge.source === nodeId)
-      .map(edge => ({
+      .filter((edge: any) => edge.source === nodeId)
+      .map((edge: any) => ({
         nodeId: edge.target,
         weight: edge.weight || 1
       }));
@@ -514,7 +514,7 @@ const getDijkstraSteps = (startVertex?: string, customGraph?: any): AlgorithmSte
   // Helper function to format distances for display
   const getDistancesDisplay = (): Record<string, number | string> => {
     const display: Record<string, number | string> = {};
-    baseGraph.nodes.forEach(node => {
+    baseGraph.nodes.forEach((node: any) => {
       const dist = distances.get(node.id)!;
       display[node.label] = dist === Infinity ? '∞' : dist;
     });
@@ -523,7 +523,7 @@ const getDijkstraSteps = (startVertex?: string, customGraph?: any): AlgorithmSte
 
   // Helper function to get node label by id
   const getNodeLabel = (nodeId: number): string => {
-    return baseGraph.nodes.find(n => n.id === nodeId)!.label;
+    return baseGraph.nodes.find((n: any) => n.id === nodeId)!.label;
   };
 
   // Step 1: Initialize
@@ -642,10 +642,33 @@ const getDijkstraSteps = (startVertex?: string, customGraph?: any): AlgorithmSte
 
   // Build final distances summary
   const finalDistances: string[] = [];
-  baseGraph.nodes.forEach(node => {
+  const shortestPathNodes: number[] = [];
+  const shortestPathEdges: Array<{source: number, target: number}> = [];
+
+  baseGraph.nodes.forEach((node: any) => {
     const dist = distances.get(node.id)!;
     finalDistances.push(`${node.label} → ${dist === Infinity ? '∞' : dist}`);
+    
+    // Build shortest path for reachable nodes
+    if (dist !== Infinity && node.id !== startNodeId) {
+      let current = node.id;
+      const pathNodes = [current];
+      const pathEdges = [];
+      
+      while (previous.get(current) !== null) {
+        const prev = previous.get(current)!;
+        pathEdges.unshift({ source: prev, target: current });
+        pathNodes.unshift(prev);
+        current = prev;
+      }
+      
+      shortestPathNodes.push(...pathNodes);
+      shortestPathEdges.push(...pathEdges);
+    }
   });
+
+  // Add start node to shortest path visualization
+  shortestPathNodes.push(startNodeId);
 
   // Final step
   steps.push({
@@ -653,7 +676,8 @@ const getDijkstraSteps = (startVertex?: string, customGraph?: any): AlgorithmSte
     description: `Готово: Всі найкоротші шляхи від вершини ${startLabel} були обчислені. Кінцеві відстані: ${finalDistances.join(', ')}.`,
     graph: baseGraph,
     visited: {
-      nodes: Array.from(visited)
+      nodes: [...new Set(shortestPathNodes)], // Remove duplicates
+      edges: shortestPathEdges
     },
     distances: getDistancesDisplay()
   });
@@ -1231,7 +1255,7 @@ const getBellmanFordSteps = (startVertex?: string, customGraph?: any): Algorithm
     const shortestPathNodes: number[] = [];
     const shortestPathEdges: Array<{source: number, target: number}> = [];
 
-    baseGraph.nodes.forEach(node => {
+    baseGraph.nodes.forEach((node: any) => {
       const dist = distances.get(node.id)!;
       finalDistances.push(`${node.label} → ${dist === Infinity ? '∞' : dist}`);
       

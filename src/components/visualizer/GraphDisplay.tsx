@@ -22,16 +22,19 @@ const GraphDisplay: React.FC<GraphDisplayProps> = ({ steps, currentStepIndex }) 
           {
             selector: 'node',
             style: {
-              'background-color': '#6B7280',
+              'background-color': '#E5E7EB',
               'label': 'data(label)',
               'text-valign': 'center',
               'text-halign': 'center',
-              'color': 'white',
+              'color': '#1F2937',
               'font-weight': 'bold',
-              'width': 40,
-              'height': 40,
-              'border-width': 2,
-              'border-color': '#F3F4F6'
+              'font-size': '12px',
+              'width': 60,
+              'height': 60,
+              'border-width': 3,
+              'border-color': '#9CA3AF',
+              'text-wrap': 'wrap',
+              'text-max-width': '50px'
             }
           },
           {
@@ -54,7 +57,8 @@ const GraphDisplay: React.FC<GraphDisplayProps> = ({ steps, currentStepIndex }) 
             style: {
               'background-color': '#8B5CF6',
               'border-color': '#7C3AED',
-              'border-width': 2
+              'border-width': 3,
+              'color': '#FFFFFF'
             }
           },
           {
@@ -62,28 +66,42 @@ const GraphDisplay: React.FC<GraphDisplayProps> = ({ steps, currentStepIndex }) 
             style: {
               'line-color': '#8B5CF6',
               'target-arrow-color': '#8B5CF6',
-              'width': 5
+              'width': 5,
+              'label': 'data(weight)',
+              'font-size': '10px',
+              'color': '#1F2937',
+              'text-background-color': 'white',
+              'text-background-opacity': 1,
+              'text-background-padding': '2px'
             }
           },
           {
             selector: '.visited',
             style: {
               'background-color': '#10B981',
-              'border-color': '#059669'
+              'border-color': '#059669',
+              'color': '#FFFFFF'
             }
           },
           {
             selector: 'edge.visited',
             style: {
               'line-color': '#10B981',
-              'target-arrow-color': '#10B981'
+              'target-arrow-color': '#10B981',
+              'label': 'data(weight)',
+              'font-size': '10px',
+              'color': '#1F2937',
+              'text-background-color': 'white',
+              'text-background-opacity': 1,
+              'text-background-padding': '2px'
             }
           },
           {
             selector: '.path',
             style: {
               'background-color': '#F59E0B',
-              'border-color': '#D97706'
+              'border-color': '#D97706',
+              'color': '#1F2937'
             }
           },
           {
@@ -91,7 +109,13 @@ const GraphDisplay: React.FC<GraphDisplayProps> = ({ steps, currentStepIndex }) 
             style: {
               'line-color': '#F59E0B',
               'target-arrow-color': '#F59E0B',
-              'width': 5
+              'width': 5,
+              'label': 'data(weight)',
+              'font-size': '10px',
+              'color': '#1F2937',
+              'text-background-color': 'white',
+              'text-background-opacity': 1,
+              'text-background-padding': '2px'
             }
           },
           {
@@ -99,7 +123,8 @@ const GraphDisplay: React.FC<GraphDisplayProps> = ({ steps, currentStepIndex }) 
             style: {
               'background-color': '#EF4444',
               'border-color': '#DC2626',
-              'border-width': 3
+              'border-width': 3,
+              'color': '#FFFFFF'
             }
           },
           {
@@ -108,7 +133,13 @@ const GraphDisplay: React.FC<GraphDisplayProps> = ({ steps, currentStepIndex }) 
               'line-color': '#EF4444',
               'target-arrow-color': '#EF4444',
               'width': 6,
-              'line-style': 'dashed'
+              'line-style': 'dashed',
+              'label': 'data(weight)',
+              'font-size': '10px',
+              'color': '#1F2937',
+              'text-background-color': 'white',
+              'text-background-opacity': 1,
+              'text-background-padding': '2px'
             }
           }
         ],

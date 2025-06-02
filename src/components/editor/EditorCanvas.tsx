@@ -283,14 +283,14 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
     ctx.translate(viewport.x, viewport.y);
     ctx.scale(viewport.scale, viewport.scale);
     
-    // Define node radius and colors
-    const nodeRadius = 20;
-    const nodeColor = '#6B7280';
+    // Style constants  
+    const nodeRadius = 30; // Increased from default
+    const nodeStrokeWidth = 2;
+    const nodeColor = '#E5E7EB'; // Light gray background for better text readability
     const selectedNodeColor = '#8B5CF6';
-    const nodeTextColor = '#FFFFFF';
+    const nodeTextColor = '#1F2937'; // Dark gray text for better readability
     const edgeColor = '#9CA3AF';
     const selectedEdgeColor = '#8B5CF6';
-    const nodeStrokeWidth = 2;
     const edgeStrokeWidth = 2;
     const selectedEdgeStrokeWidth = 4;
     
@@ -406,7 +406,7 @@ const EditorCanvas: React.FC<EditorCanvasProps> = ({
       ctx.stroke();
       
       // Draw node label
-      ctx.font = `bold ${14 / viewport.scale}px Arial`; // Adjust font size for zoom
+      ctx.font = `bold ${16 / viewport.scale}px Arial`; // Increased font size for better readability
       ctx.fillStyle = nodeTextColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
