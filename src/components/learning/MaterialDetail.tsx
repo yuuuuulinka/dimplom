@@ -31,6 +31,15 @@ const MaterialDetail: React.FC<MaterialDetailProps> = ({ material, onBack, onTak
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Reset scroll to top when component mounts or material changes
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'smooth'
+    });
+  }, [material.id]);
+
   // Load comments when component mounts
   useEffect(() => {
     loadComments();

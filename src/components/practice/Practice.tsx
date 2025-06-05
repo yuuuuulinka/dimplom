@@ -87,7 +87,15 @@ const Practice: React.FC = () => {
     return (
       <ProblemDetail 
         problem={selectedProblem} 
-        onBack={() => setSelectedProblem(null)} 
+        onBack={() => {
+          setSelectedProblem(null);
+          // Scroll to top when returning to practice list
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'smooth'
+          });
+        }} 
       />
     );
   }
@@ -96,7 +104,15 @@ const Practice: React.FC = () => {
     return (
       <TestDetail 
         test={selectedTest} 
-        onBack={() => setSelectedTest(null)}
+        onBack={() => {
+          setSelectedTest(null);
+          // Scroll to top when returning to practice list
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'smooth'
+          });
+        }}
         onTestCompleted={() => {
           // Refresh test stats when a test is completed
           if (user) {
@@ -232,7 +248,15 @@ const Practice: React.FC = () => {
                     <ProblemCard 
                       key={problem.id} 
                       problem={problem} 
-                      onClick={() => setSelectedProblem(problem)} 
+                      onClick={() => {
+                        setSelectedProblem(problem);
+                        // Scroll to top when selecting a problem
+                        window.scrollTo({
+                          top: 0,
+                          left: 0,
+                          behavior: 'smooth'
+                        });
+                      }} 
                     />
                   ))}
                 </div>
@@ -279,7 +303,15 @@ const Practice: React.FC = () => {
                       <TestCard 
                         key={test.id} 
                         test={testWithCompletion} 
-                        onClick={() => setSelectedTest(test)} 
+                        onClick={() => {
+                          setSelectedTest(test);
+                          // Scroll to top when selecting a test
+                          window.scrollTo({
+                            top: 0,
+                            left: 0,
+                            behavior: 'smooth'
+                          });
+                        }} 
                       />
                     );
                   })}

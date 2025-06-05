@@ -44,7 +44,15 @@ const LearningMaterials: React.FC = () => {
     return (
       <TestDetail 
         test={selectedTest} 
-        onBack={() => setSelectedTest(null)} 
+        onBack={() => {
+          setSelectedTest(null);
+          // Scroll to top when returning to materials list
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'smooth'
+          });
+        }} 
       />
     );
   }
@@ -53,7 +61,15 @@ const LearningMaterials: React.FC = () => {
     return (
       <MaterialDetail 
         material={selectedMaterial} 
-        onBack={() => setSelectedMaterial(null)}
+        onBack={() => {
+          setSelectedMaterial(null);
+          // Scroll to top when returning to materials list
+          window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'smooth'
+          });
+        }}
         onTakeTest={handleTakeTest}
       />
     );
@@ -122,17 +138,22 @@ const LearningMaterials: React.FC = () => {
           ) : (
             <>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                {searchTerm ? `Результати пошуку для "${searchTerm}"` : 
-                 selectedCategory !== 'all' ? `${categories.find(c => c.id === selectedCategory)?.name}` :
-                 'Всі матеріали'}
+                {searchTerm ? `Результати пошуку для "${searchTerm}"` : 'Всі матеріали'}
               </h2>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {filteredMaterials.map(material => (
                   <MaterialCard 
                     key={material.id} 
                     material={material} 
-                    onClick={() => setSelectedMaterial(material)} 
+                    onClick={() => {
+                      setSelectedMaterial(material);
+                      // Scroll to top when selecting a material
+                      window.scrollTo({
+                        top: 0,
+                        left: 0,
+                        behavior: 'smooth'
+                      });
+                    }} 
                   />
                 ))}
               </div>
@@ -147,7 +168,15 @@ const LearningMaterials: React.FC = () => {
                     <div 
                       key={material.id} 
                       className="border border-gray-200 rounded-md p-4 hover:border-purple-300 transition-colors cursor-pointer"
-                      onClick={() => setSelectedMaterial(material)}
+                      onClick={() => {
+                        setSelectedMaterial(material);
+                        // Scroll to top when selecting a material
+                        window.scrollTo({
+                          top: 0,
+                          left: 0,
+                          behavior: 'smooth'
+                        });
+                      }}
                     >
                       <h4 className="font-medium text-gray-900">{material.title}</h4>
                       <p className="text-sm text-gray-600 mt-1">{material.category}</p>

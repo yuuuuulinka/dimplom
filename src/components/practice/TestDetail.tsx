@@ -21,6 +21,15 @@ const TestDetail: React.FC<TestDetailProps> = ({ test, onBack, onTestCompleted }
   const { user } = useAuth();
   const { addNotification } = useNotifications();
 
+  // Reset scroll to top when component mounts or test changes
+  useEffect(() => {
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'smooth'
+    });
+  }, [test.id]);
+
   useEffect(() => {
     if (!isSubmitted && timeRemaining > 0) {
       const timer = setInterval(() => {
@@ -111,6 +120,13 @@ const TestDetail: React.FC<TestDetailProps> = ({ test, onBack, onTestCompleted }
     setTimeRemaining(test.estimatedTime * 60);
     setShowResults(false);
     setScore(0);
+    
+    // Scroll to top when restarting the test
+    window.scrollTo({
+      top: 0,
+      left: 0,
+      behavior: 'smooth'
+    });
   };
 
   const formatTime = (seconds: number) => {
